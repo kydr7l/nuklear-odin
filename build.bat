@@ -1,5 +1,6 @@
 @echo off
 rem Build the Nuklear static library into lib\nuklear.lib.
+rem Also build lib\nuklear_layout.lib for the layout test.
 rem Usage: build.bat [debug]
 rem Set the CC environment variable to select the compiler (default: clang).
 setlocal enabledelayedexpansion
@@ -32,4 +33,8 @@ if not exist lib mkdir lib
 if exist lib\nuklear.lib del lib\nuklear.lib
 llvm-lib /nologo /out:lib\nuklear.lib build\obj\nuklear.obj || exit /b 1
 
-echo Built lib\nuklear.lib
+%CC% %CFLAGS% -c tests\layout.c -o build\obj\nuklear_layout.obj || exit /b 1
+if exist lib\nuklear_layout.lib del lib\nuklear_layout.lib
+llvm-lib /nologo /out:lib\nuklear_layout.lib build\obj\nuklear_layout.obj || exit /b 1
+
+echo Built lib\nuklear.lib and lib\nuklear_layout.lib

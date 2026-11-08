@@ -1,5 +1,6 @@
 #!/usr/bin/env sh
 # Build the Nuklear static library into lib/libnuklear.a.
+# Also build lib/libnuklear_layout.a for the layout test.
 # Usage: ./build.sh [debug]
 # Set the CC environment variable to select the compiler (default: cc).
 set -eu
@@ -30,4 +31,8 @@ $cc $cflags -c nuklear.c -o build/obj/nuklear.o
 rm -f lib/libnuklear.a
 ar rcs lib/libnuklear.a build/obj/nuklear.o
 
-echo "Built lib/libnuklear.a"
+$cc $cflags -c tests/layout.c -o build/obj/nuklear_layout.o
+rm -f lib/libnuklear_layout.a
+ar rcs lib/libnuklear_layout.a build/obj/nuklear_layout.o
+
+echo "Built lib/libnuklear.a and lib/libnuklear_layout.a"

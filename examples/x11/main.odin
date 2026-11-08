@@ -23,6 +23,11 @@ foreign libx11 {
 	XDestroyIC      :: proc(ic: xlib.XIC) ---
 }
 
+// vendor:x11/xlib declares DrawLines without the mode argument (an upstream bug).
+// Odin does not allow a second declaration of the same symbol, so call it through this type.
+Draw_Lines_Proc :: #type proc "c" (dpy: ^xlib.Display, d: xlib.Drawable, gc: xlib.GC, pts: [^]xlib.XPoint, n: i32, mode: xlib.CoordMode)
+draw_lines := cast(Draw_Lines_Proc)xlib.DrawLines
+
 // These atoms are not in vendor:x11/xlib. Their values are fixed by the X protocol.
 XA_PRIMARY :: xlib.Atom(1)
 XA_STRING  :: xlib.Atom(31)
@@ -172,6 +177,8 @@ clipboard_paste :: proc "c" (handle: nk.Handle, edit: ^nk.Text_Edit) {
 // Answer a request from another program for the text of this program.
 selection_request :: proc(req: ^xlib.XSelectionRequestEvent) {
 	reply: xlib.XEvent
+	// An old client can send the property None. Then the target is the property (ICCCM).
+	property := req.property if req.property != xlib.None else req.target
 	// The property None means that this program refuses the request.
 	reply.xselection = {
 		type      = .SelectionNotify,
@@ -183,15 +190,15 @@ selection_request :: proc(req: ^xlib.XSelectionRequestEvent) {
 	switch {
 	case req.target == app.xa_targets:
 		targets := [3]xlib.Atom{app.xa_targets, app.xa_utf8, XA_STRING}
-		xlib.ChangeProperty(app.dpy, req.requestor, req.property, xlib.XA_ATOM, 32, xlib.PropModeReplace, &targets, 3)
-		reply.xselection.property = req.property
+		xlib.ChangeProperty(app.dpy, req.requestor, property, xlib.XA_ATOM, 32, xlib.PropModeReplace, &targets, 3)
+		reply.xselection.property = property
 	case len(app.clipboard) > 0 && (req.target == app.xa_utf8 || req.target == XA_STRING):
 		// shortcut: the STRING target gets the UTF-8 bytes, so only ASCII is exact; upgrade if Latin-1 paste matters.
 		xlib.ChangeProperty(
-			app.dpy, req.requestor, req.property, req.target, 8, xlib.PropModeReplace,
+			app.dpy, req.requestor, property, req.target, 8, xlib.PropModeReplace,
 			raw_data(app.clipboard), i32(len(app.clipboard)),
 		)
-		reply.xselection.property = req.property
+		reply.xselection.property = property
 	}
 	xlib.SendEvent(app.dpy, req.requestor, false, {}, &reply)
 	xlib.Flush(app.dpy)
@@ -225,14 +232,20 @@ line :: proc(x0, y0, x1, y1: i32) {
 	xlib.DrawLine(app.dpy, app.pixmap, app.gc, x0, y0, x1, y1)
 }
 
-// vendor:x11/xlib has no mode argument in DrawLines, so draw one line at a time.
+// Draw connected lines in one call, so that the joints are mitered. A closed shape gets its first point again.
+// The caller must have a temp allocator guard.
 polyline :: proc(pts: [^]xlib.XPoint, count: int, close: bool) {
-	for i in 1 ..< count {
-		line(i32(pts[i - 1].x), i32(pts[i - 1].y), i32(pts[i].x), i32(pts[i].y))
+	if count < 2 {
+		return
 	}
-	if close && count > 1 {
-		line(i32(pts[count - 1].x), i32(pts[count - 1].y), i32(pts[0].x), i32(pts[0].y))
+	if !close {
+		draw_lines(app.dpy, xlib.Drawable(app.pixmap), app.gc, pts, i32(count), .CoordModeOrigin)
+		return
 	}
+	closed := make([]xlib.XPoint, count + 1, context.temp_allocator)
+	copy(closed, pts[:count])
+	closed[count] = pts[0]
+	draw_lines(app.dpy, xlib.Drawable(app.pixmap), app.gc, raw_data(closed), i32(count + 1), .CoordModeOrigin)
 }
 
 // Draw or fill an arc. The angles are in 1/64 degree.
@@ -578,9 +591,12 @@ handle_event :: proc(ev: ^xlib.XEvent) {
 			app.running = false
 		}
 	case .SelectionClear:
-		// Another program took the selection.
-		delete(app.clipboard)
-		app.clipboard = nil
+		// Keep the text while this program still owns CLIPBOARD. Another program that takes
+		// PRIMARY (a text selection) must not remove the text that Ctrl+V pastes.
+		if ev.xselectionclear.selection == app.xa_clipboard {
+			delete(app.clipboard)
+			app.clipboard = nil
+		}
 	case .SelectionRequest:
 		selection_request(&ev.xselectionrequest)
 	}

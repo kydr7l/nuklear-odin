@@ -84,13 +84,15 @@ Each type name is in `Ada_Case`. A struct field keeps its C name, with one excep
 
 Each C enum is an alias of `c.int`. Its members are untyped constants. Combine flags with `|`, as in C: `nk.WINDOW_BORDER | nk.WINDOW_MOVABLE`. `nk.Bool` is `b32`.
 
+Use the Odin `true` and `false` for an `nk.Bool`. `nk.TRUE` and `nk.FALSE` are untyped integers for a `c.int` parameter.
+
 Odin has no C macros. These procedures replace the macros that make a loop or use the caller location:
 
 - `nk.foreach` replaces `nk_foreach`. Set only `ctx` in a `nk.Command_Iterator`.
 - `nk.draw_foreach` replaces `nk_draw_foreach`. Set only `ctx` and `cmds` in a `nk.Draw_Iterator`.
 - `nk.tree_push`, `nk.tree_image_push`, and `nk.tree_element_push` replace the `nk_tree_*_push` macros. The `_id` forms replace the `nk_tree_*_push_id` macros.
 
-The `labelf` procedures do not change the type of a variadic argument. Give `f64` for a float. Give `c.int` for an integer.
+The `labelf`, `tooltipf`, and `tooltipf_offset` procedures do not change the type of a variadic argument. Give `f64` for a float. Give `c.int` for an integer.
 
 ## Examples
 
@@ -103,8 +105,9 @@ odin run examples/raylib   # raylib window
 odin run examples/x11      # X11 window (Linux only)
 ```
 
-- On Windows, the SDL example needs `SDL3.dll` next to the executable. Copy it from the `vendor/sdl3` folder of your Odin installation.
+- On Windows, the SDL example needs `SDL3.dll` next to the program that `odin run examples/sdl` makes. Run it from the repository root, and copy `SDL3.dll` from the `vendor/sdl3` folder of your Odin installation to the current directory.
 - On Linux, the SDL example needs the SDL3 library of your system.
+- The X11 example and the Linux build and test steps did not run on Linux. They passed only `odin check -target:linux_amd64`.
 
 ## Compile options
 

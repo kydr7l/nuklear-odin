@@ -1,6 +1,7 @@
 // Draw the Nuklear demo UI with the SDL3 renderer.
 // This is a port of nuklear/demo/sdl3_renderer/nuklear_sdl3_renderer.h.
-// On Windows, put SDL3.dll from Odin's vendor/sdl3 folder next to the executable.
+// On Windows, copy SDL3.dll from Odin's vendor/sdl3 folder to the folder that holds the program.
+// If you use odin run examples/sdl from the repository root, that folder is the current directory.
 package main
 
 import "base:runtime"

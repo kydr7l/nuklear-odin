@@ -106,7 +106,8 @@ test_headless_frame :: proc(t: ^testing.T) {
 	nk.clear(ctx)
 }
 
-// The two trees are on two lines. Each must open and give its own "Same" title.
+// The two trees have the same title on two lines. A shared state would open both or close both.
+// The first tree starts closed and the second starts open, so each must keep its own state.
 @(test)
 test_tree_push_unique_per_line :: proc(t: ^testing.T) {
 	h: Headless
@@ -119,13 +120,13 @@ test_tree_push_unique_per_line :: proc(t: ^testing.T) {
 	first, second: nk.Bool
 	if nk.begin(ctx, "Trees", nk.rect(0, 0, 300, 300), 0) {
 		nk.layout_row_dynamic(ctx, 20, 1)
-		first = nk.tree_push(ctx, nk.TREE_TAB, "Same", nk.MAXIMIZED)
+		first = nk.tree_push(ctx, nk.TREE_TAB, "Same", nk.MINIMIZED)
 		if first {nk.tree_pop(ctx)}
 		second = nk.tree_push(ctx, nk.TREE_TAB, "Same", nk.MAXIMIZED)
 		if second {nk.tree_pop(ctx)}
 	}
 	nk.end(ctx)
-	testing.expect(t, bool(first), "first tree is closed")
+	testing.expect(t, !bool(first), "first tree is open")
 	testing.expect(t, bool(second), "second tree is closed")
 
 	same := 0
@@ -168,6 +169,7 @@ test_text_input_unicode :: proc(t: ^testing.T) {
 }
 
 // The #c_vararg arguments must reach the C printf format.
+// #c_vararg ..any does no C default promotion. Pass f64 for a float and c.int for a small integer.
 @(test)
 test_labelf_vararg :: proc(t: ^testing.T) {
 	h: Headless

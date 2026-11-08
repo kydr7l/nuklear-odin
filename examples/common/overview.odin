@@ -1,16 +1,15 @@
 package common
 
+import "base:runtime"
 import "core:c"
 import "core:fmt"
 import "core:time"
+import "core:time/datetime"
+import "core:time/timezone"
 import nk "../.."
 
 // The white color. Nuklear defines it as nk_white in nuklear.h.
 WHITE :: nk.Color{255, 255, 255, 255}
-
-// The progress bar is user-modifiable. nk.MODIFIABLE is an untyped integer, but nk.progress takes an nk.Bool.
-@(private)
-MODIFIABLE :: true
 
 // Port of nuklear/demo/common/overview.c. The INCLUDE_STYLE theme code is not ported.
 // The result is false when the user closes the window.
@@ -55,7 +54,7 @@ overview :: proc(ctx: ^nk.Context) -> bool {
 				if nk.menu_item_label(ctx, "About", nk.TEXT_LEFT) {
 					show_app_about = true
 				}
-				nk.progress(ctx, &prog, 100, MODIFIABLE)
+				nk.progress(ctx, &prog, 100, nk.MODIFIABLE != 0)
 				nk.slider_int(ctx, 0, &slider, 16, 1)
 				nk.checkbox_label(ctx, "check", &check)
 				nk.menu_end(ctx)
@@ -125,7 +124,7 @@ overview :: proc(ctx: ^nk.Context) -> bool {
 			}
 			// Menu widgets.
 			nk.layout_row_push(ctx, 70)
-			nk.progress(ctx, &mprog, 100, MODIFIABLE)
+			nk.progress(ctx, &mprog, 100, nk.MODIFIABLE != 0)
 			nk.slider_int(ctx, 0, &mslider, 16, 1)
 			nk.checkbox_label(ctx, "check", &mcheck)
 			nk.menubar_end(ctx)
@@ -276,7 +275,7 @@ overview :: proc(ctx: ^nk.Context) -> bool {
 				@(static) range_int_min: c.int = 0
 				@(static) range_int_value: c.int = 2048
 				@(static) range_int_max: c.int = 4096
-				ratio := [?]f32{120, 150}
+				@(static) ratio := [?]f32{120, 150}
 				@(static) range_int_value_hidden: c.int = 2048
 
 				nk.layout_row_dynamic(ctx, 0, 1)
@@ -302,7 +301,7 @@ overview :: proc(ctx: ^nk.Context) -> bool {
 				nk.label(ctx, "Slider float", nk.TEXT_LEFT)
 				nk.slider_float(ctx, 0, &float_slider, 5.0, 0.5)
 				nk.label(ctx, fmt.ctprintf("Progressbar: %d", int(prog_value)), nk.TEXT_LEFT)
-				nk.progress(ctx, &prog_value, 100, MODIFIABLE)
+				nk.progress(ctx, &prog_value, 100, nk.MODIFIABLE != 0)
 
 				nk.layout_row(ctx, nk.STATIC, 40, 2, raw_data(ratio[:]))
 				nk.label(ctx, fmt.ctprintf("Knob int: %d", int_knob), nk.TEXT_LEFT)
@@ -412,7 +411,7 @@ overview :: proc(ctx: ^nk.Context) -> bool {
 
 				// Slider color combo box.
 				if nk.combo_begin_color(ctx, combo_color, nk.vec2(200, 200)) {
-					ratios := [?]f32{0.15, 0.85}
+					@(static) ratios := [?]f32{0.15, 0.85}
 					nk.layout_row(ctx, nk.DYNAMIC, 30, 2, raw_data(ratios[:]))
 					nk.label(ctx, "R:", nk.TEXT_LEFT)
 					combo_color.r = nk.Byte(nk.slide_int(ctx, 0, c.int(combo_color.r), 255, 5))
@@ -457,10 +456,10 @@ overview :: proc(ctx: ^nk.Context) -> bool {
 				sum = int(prog_a + prog_b + prog_c + prog_d)
 				if nk.combo_begin_label(ctx, fmt.ctprintf("%d", sum), nk.vec2(200, 200)) {
 					nk.layout_row_dynamic(ctx, 30, 1)
-					nk.progress(ctx, &prog_a, 100, MODIFIABLE)
-					nk.progress(ctx, &prog_b, 100, MODIFIABLE)
-					nk.progress(ctx, &prog_c, 100, MODIFIABLE)
-					nk.progress(ctx, &prog_d, 100, MODIFIABLE)
+					nk.progress(ctx, &prog_a, 100, nk.MODIFIABLE != 0)
+					nk.progress(ctx, &prog_b, 100, nk.MODIFIABLE != 0)
+					nk.progress(ctx, &prog_c, 100, nk.MODIFIABLE != 0)
+					nk.progress(ctx, &prog_d, 100, nk.MODIFIABLE != 0)
 					nk.combo_end(ctx)
 				}
 
@@ -511,15 +510,23 @@ overview :: proc(ctx: ^nk.Context) -> bool {
 					@(static) sel_mday, sel_mon, sel_year: c.int
 					if !time_selected || !date_selected {
 						// Keep the time and date updated if nothing is selected.
-						// shortcut: core:time gives UTC, not local time. Use the timezone package to upgrade.
-						now := time.now()
+						now, _ := time.time_to_datetime(time.now())
+						// Use the local time zone. If the load fails, the time stays in UTC.
+						// The region lives until the program ends, so it uses the heap allocator.
+						@(static) local_tried: bool
+						@(static) local_region: ^datetime.TZ_Region
+						if !local_tried {
+							local_tried = true
+							local_region, _ = timezone.region_load("local", runtime.heap_allocator())
+						}
+						if local_region != nil {
+							now = timezone.datetime_to_tz(now, local_region) or_else now
+						}
 						if !time_selected {
-							hour, minute, second := time.clock(now)
-							sel_hour, sel_min, sel_sec = c.int(hour), c.int(minute), c.int(second)
+							sel_hour, sel_min, sel_sec = c.int(now.hour), c.int(now.minute), c.int(now.second)
 						}
 						if !date_selected {
-							year, month, day := time.date(now)
-							sel_mday, sel_mon, sel_year = c.int(day), c.int(month) - 1, c.int(year) - 1900
+							sel_mday, sel_mon, sel_year = c.int(now.day), c.int(now.month) - 1, c.int(now.year) - 1900
 						}
 					}
 
@@ -600,7 +607,7 @@ overview :: proc(ctx: ^nk.Context) -> bool {
 			}
 
 			if nk.tree_push(ctx, nk.TREE_NODE, "Input", nk.MINIMIZED) {
-				ratio := [?]f32{120, 150}
+				@(static) ratio := [?]f32{120, 150}
 				@(static) field_buffer: [64]c.char
 				@(static) field_w_overwrite_buf: [64]c.char
 				@(static) text: [9][64]c.char

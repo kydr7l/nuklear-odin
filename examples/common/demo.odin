@@ -2,6 +2,7 @@
 package common
 
 import "core:c"
+import "base:runtime"
 import "core:fmt"
 import nk "../.."
 
@@ -34,8 +35,8 @@ demo :: proc(ctx: ^nk.Context) {
 
 // Draw one frame of the UI. The caller starts and ends the input and renders the result.
 frame :: proc(ctx: ^nk.Context) {
-	// The labels come from ctprintf. Free its memory at the end of the frame.
-	defer free_all(context.temp_allocator)
+	// The labels come from ctprintf. Free only this frame's temporary memory at the end of the frame.
+	runtime.DEFAULT_TEMP_ALLOCATOR_TEMP_GUARD()
 	demo(ctx)
 	overview(ctx)
 }

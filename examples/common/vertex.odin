@@ -34,7 +34,7 @@ convert :: proc(ctx: ^nk.Context, cmds, verts, elems: ^nk.Buffer, null_tex: nk.D
 }
 
 // Bake the default font into RGBA32 pixels. The caller uploads the pixels, then calls nk.font_atlas_end.
-// The pixels belong to the atlas. They stay valid until nk.font_atlas_clear.
+// The pixels belong to the atlas. Upload them before nk.font_atlas_end, which frees them.
 bake_default_font :: proc(atlas: ^nk.Font_Atlas, height: f32) -> (font: ^nk.Font, pixels: []u8, atlas_width, atlas_height: i32) {
 	nk.font_atlas_init_default(atlas)
 	nk.font_atlas_begin(atlas)

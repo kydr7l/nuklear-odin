@@ -11,12 +11,6 @@ package nuklear
 
 import "core:c"
 
-when ODIN_OS == .Windows {
-	foreign import lib "lib/nuklear.lib"
-} else {
-	foreign import lib {"lib/libnuklear.a", "system:m"}
-}
-
 Char       :: i8
 Uchar      :: u8
 Byte       :: u8

@@ -147,3 +147,26 @@ test_foreach_visits_commands :: proc(t: ^testing.T) {
 	testing.expect(t, count > 0)
 	nk.free(&ctx)
 }
+
+// The same id on two source lines must give two separate tree states, as in C.
+// The first tree starts closed and the second starts open. A shared state would close both.
+@(test)
+test_tree_push_id_unique_per_line :: proc(t: ^testing.T) {
+	memory: [64 * 1024]byte
+	font := nk.User_Font{height = 10, width = proc "c" (_: nk.Handle, _: f32, _: cstring, n: c.int) -> f32 { return f32(n) * 5 }}
+	ctx: nk.Context
+	testing.expect(t, bool(nk.init_fixed(&ctx, raw_data(memory[:]), nk.Size(len(memory)), &font)))
+	defer nk.free(&ctx)
+	nk.input_begin(&ctx)
+	nk.input_end(&ctx)
+	if nk.begin(&ctx, "w", {0, 0, 200, 200}, 0) {
+		nk.layout_row_dynamic(&ctx, 20, 1)
+		first := nk.tree_push_id(&ctx, nk.TREE_TAB, "Same", nk.MINIMIZED, 0)
+		if first {nk.tree_pop(&ctx)}
+		second := nk.tree_push_id(&ctx, nk.TREE_TAB, "Same", nk.MAXIMIZED, 0)
+		if second {nk.tree_pop(&ctx)}
+		testing.expect(t, !bool(first))
+		testing.expect(t, bool(second))
+	}
+	nk.end(&ctx)
+}

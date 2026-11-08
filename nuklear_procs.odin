@@ -1,6 +1,7 @@
 package nuklear
 
 import "core:c"
+import "core:fmt"
 
 when ODIN_OS == .Windows {
 	foreign import lib "lib/nuklear.lib"
@@ -184,13 +185,21 @@ hash_of :: proc(path: string) -> (cstring, c.int) {
 	return cstring(raw_data(path)), c.int(len(path))
 }
 
+// Build "file:line" in buf, as NK_FILE_LINE does in C. The _id forms need it, because the seed is the id.
+@(private)
+hash_of_line :: proc(buf: []u8, path: string, line: i32) -> (cstring, c.int) {
+	s := fmt.bprintf(buf, "%s:%d", path, line)
+	return cstring(raw_data(s)), c.int(len(s))
+}
+
 tree_push :: proc(ctx: ^Context, type: Tree_Type, title: cstring, state: Collapse_States, loc := #caller_location) -> Bool {
 	hash, n := hash_of(loc.file_path)
 	return tree_push_hashed(ctx, type, title, state, hash, n, c.int(loc.line))
 }
 
 tree_push_id :: proc(ctx: ^Context, type: Tree_Type, title: cstring, state: Collapse_States, id: c.int, loc := #caller_location) -> Bool {
-	hash, n := hash_of(loc.file_path)
+	buf: [512]u8
+	hash, n := hash_of_line(buf[:], loc.file_path, loc.line)
 	return tree_push_hashed(ctx, type, title, state, hash, n, id)
 }
 
@@ -200,7 +209,8 @@ tree_image_push :: proc(ctx: ^Context, type: Tree_Type, img: Image, title: cstri
 }
 
 tree_image_push_id :: proc(ctx: ^Context, type: Tree_Type, img: Image, title: cstring, state: Collapse_States, id: c.int, loc := #caller_location) -> Bool {
-	hash, n := hash_of(loc.file_path)
+	buf: [512]u8
+	hash, n := hash_of_line(buf[:], loc.file_path, loc.line)
 	return tree_image_push_hashed(ctx, type, img, title, state, hash, n, id)
 }
 
@@ -210,6 +220,7 @@ tree_element_push :: proc(ctx: ^Context, type: Tree_Type, title: cstring, state:
 }
 
 tree_element_push_id :: proc(ctx: ^Context, type: Tree_Type, title: cstring, state: Collapse_States, selected: ^Bool, id: c.int, loc := #caller_location) -> Bool {
-	hash, n := hash_of(loc.file_path)
+	buf: [512]u8
+	hash, n := hash_of_line(buf[:], loc.file_path, loc.line)
 	return tree_element_push_hashed(ctx, type, title, state, selected, hash, n, id)
 }

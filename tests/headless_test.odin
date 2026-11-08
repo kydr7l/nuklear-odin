@@ -4,6 +4,7 @@ import "core:c"
 import "core:strings"
 import "core:testing"
 import nk ".."
+import common "../examples/common"
 
 // A Nuklear context with the baked default font and no window system.
 Headless :: struct {
@@ -15,11 +16,8 @@ Headless :: struct {
 
 // Bake the default font (13 px) and start the context. The Headless value must not move afterward.
 headless_init :: proc(t: ^testing.T, h: ^Headless) -> bool {
-	nk.font_atlas_init_default(&h.atlas)
-	nk.font_atlas_begin(&h.atlas)
-	h.font = nk.font_atlas_add_default(&h.atlas, 13, nil)
-	w, ht: c.int
-	pixels := nk.font_atlas_bake(&h.atlas, &w, &ht, nk.FONT_ATLAS_RGBA32)
+	font, pixels, _, _ := common.bake_default_font(&h.atlas, 13)
+	h.font = font
 	testing.expect(t, pixels != nil) or_return
 	nk.font_atlas_end(&h.atlas, nk.Handle{id = 1}, &h.null_tex)
 	testing.expect(t, h.font != nil) or_return

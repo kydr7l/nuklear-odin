@@ -7,6 +7,7 @@ import "base:runtime"
 import "core:fmt"
 import "core:math"
 import "core:os"
+import "core:time"
 import win "core:sys/windows"
 import nk "../.."
 import "../common"
@@ -24,6 +25,7 @@ foreign gdi32 {
 }
 
 AD_COUNTERCLOCKWISE :: 1
+FRAME_MS            :: 20 // the time between two frames when the user does nothing
 
 Font :: struct {
 	user:   nk.User_Font,
@@ -452,6 +454,10 @@ handle_event :: proc(hwnd: win.HWND, msg: win.UINT, wparam: win.WPARAM, lparam: 
 		win.EndPaint(hwnd, &paint)
 		return true
 	case win.WM_KEYDOWN, win.WM_KEYUP, win.WM_SYSKEYDOWN, win.WM_SYSKEYUP:
+		// Alt+F4 must reach DefWindowProc, so that it closes the window.
+		if msg == win.WM_SYSKEYDOWN && wparam == win.VK_F4 {
+			return false
+		}
 		return handle_key(wparam, (lparam >> 31) & 1 == 0)
 	case win.WM_CHAR:
 		r := win.WCHAR(wparam)
@@ -481,7 +487,11 @@ handle_event :: proc(hwnd: win.HWND, msg: win.UINT, wparam: win.WPARAM, lparam: 
 		win.ReleaseCapture()
 		return true
 	case win.WM_LBUTTONDBLCLK:
+		// The second press of a double click arrives as this message, not as WM_LBUTTONDOWN.
+		// So send the left press here too.
 		button(nk.BUTTON_DOUBLE, lparam, true)
+		button(nk.BUTTON_LEFT, lparam, true)
+		win.SetCapture(hwnd)
 		return true
 	case win.WM_RBUTTONDOWN:
 		button(nk.BUTTON_RIGHT, lparam, true)
@@ -511,6 +521,11 @@ handle_event :: proc(hwnd: win.HWND, msg: win.UINT, wparam: win.WPARAM, lparam: 
 	case win.WM_MOUSEWHEEL:
 		delta := f32(win.GET_WHEEL_DELTA_WPARAM(wparam)) / win.WHEEL_DELTA
 		nk.input_scroll(&gdi.ctx, {0, delta})
+		return true
+	case win.WM_MOUSEHWHEEL:
+		// A positive delta is to the right, as in the SDL example.
+		delta := f32(win.GET_WHEEL_DELTA_WPARAM(wparam)) / win.WHEEL_DELTA
+		nk.input_scroll(&gdi.ctx, {delta, 0})
 		return true
 	case win.WM_MOUSEMOVE:
 		nk.input_motion(&gdi.ctx, win.GET_X_LPARAM(lparam), win.GET_Y_LPARAM(lparam))
@@ -573,8 +588,14 @@ main :: proc() {
 	ctx.clip.copy = clipboard_copy
 	ctx.clip.paste = clipboard_paste
 
+	// Nuklear needs a regular frame for the hover delay and the scrollbar hide timer.
+	// The timer sends WM_TIMER, so the wait for a message ends every FRAME_MS.
+	win.SetTimer(hwnd, 1, FRAME_MS, nil)
+	defer win.KillTimer(hwnd, 1)
+
 	// This loop waits for a message when nothing changed, as nuklear/demo/gdi/main.c does.
 	// After an event it draws two frames, so that the layout settles.
+	last_frame := time.tick_now()
 	running := true
 	needs_refresh := true
 	for running {
@@ -588,7 +609,8 @@ main :: proc() {
 				win.TranslateMessage(&msg)
 				win.DispatchMessageW(&msg)
 			}
-			needs_refresh = true
+			// A timer message needs one frame only. An input event needs a second frame.
+			needs_refresh = msg.message != win.WM_TIMER
 		} else {
 			needs_refresh = false
 		}
@@ -602,6 +624,10 @@ main :: proc() {
 		}
 		nk.input_end(ctx)
 		if !running do break
+
+		// Nuklear counts the time between frames for the timers.
+		ctx.delta_time_seconds = f32(time.duration_seconds(time.tick_since(last_frame)))
+		last_frame = time.tick_now()
 
 		common.frame(ctx)
 		render(common.BACKGROUND)

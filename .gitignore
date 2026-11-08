@@ -1,1 +1,10 @@
 .superpowers/
+build/
+lib/
+*.exe
+*.pdb
+*.obj
+*.o
+*.a
+*.lib
+*.dll

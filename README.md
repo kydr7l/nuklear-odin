@@ -19,15 +19,17 @@ Build the C library into `lib/`:
 
 This makes `lib/nuklear.lib` (Windows) or `lib/libnuklear.a` (Linux). It also makes the `nuklear_layout` library, which only the tests use.
 
-The build scripts accept one option:
+The build scripts accept one build option:
 
-| Option  | Effect |
-|---------|--------|
-| `debug` | Compile with `-O0 -g` in place of `-O3 -DNDEBUG`. |
+| Build option | Effect |
+|--------------|--------|
+| `debug`      | Compile with `-O0 -g` in place of `-O3 -DNDEBUG`. |
 
 Set the `CC` environment variable to use a different C compiler.
 
 ## Test
+
+Build the C library first. The layout test needs the `nuklear_layout` library.
 
 ```sh
 odin test tests
@@ -45,7 +47,7 @@ nk.font_atlas_begin(&atlas)
 font := nk.font_atlas_add_default(&atlas, 13, nil)
 w, h: i32
 pixels := nk.font_atlas_bake(&atlas, &w, &h, nk.FONT_ATLAS_RGBA32)
-// ... upload pixels to a texture, then call nk.font_atlas_end ...
+// Upload the pixels to a texture. Then call nk.font_atlas_end.
 
 ctx: nk.Context
 nk.init_default(&ctx, &font.handle)
@@ -88,7 +90,7 @@ Odin has no C macros. These procedures replace the macros that make a loop or us
 - `nk.draw_foreach` replaces `nk_draw_foreach`. Set only `ctx` and `cmds` in a `nk.Draw_Iterator`.
 - `nk.tree_push`, `nk.tree_image_push`, and `nk.tree_element_push` replace the `nk_tree_*_push` macros. The `_id` forms replace the `nk_tree_*_push_id` macros.
 
-Variadic procedures, such as `nk.labelf`, use `#c_vararg`. Odin does not promote the arguments as C does. Pass `f64` for a float and `c.int` for an integer.
+The `labelf` procedures do not change the type of a variadic argument. Give `f64` for a float. Give `c.int` for an integer.
 
 ## Examples
 
@@ -104,15 +106,11 @@ odin run examples/x11      # X11 window (Linux only)
 - On Windows, the SDL example needs `SDL3.dll` next to the executable. Copy it from the `vendor/sdl3` folder of your Odin installation.
 - On Linux, the SDL example needs the SDL3 library of your system.
 
-## Fixed options
+## Compile options
 
-Nuklear sets its features at compile time. The options are in `nuklear_options.h`. They are fixed. The options change the layout of the types and the set of procedures.
+Nuklear sets its features with compile options. The compile options are in `nuklear_options.h`. They change the layout of the types and the set of procedures.
 
-If you change an option, you must also change the bindings. The layout test in `tests/` shows a mismatch. To run it, use `odin test tests`.
-
-## Limits
-
-The 6 procedures that take a `va_list` are not bound: `nk_labelfv`, `nk_labelfv_colored`, `nk_labelfv_wrap`, `nk_labelfv_colored_wrap`, `nk_tooltipfv`, and `nk_tooltipfv_offset`. All other procedures that the library exports are bound.
+A change to these compile options needs a change to the bindings. The layout test in `tests/` shows a mismatch.
 
 ## License
 

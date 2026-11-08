@@ -38,7 +38,10 @@ convert :: proc(ctx: ^nk.Context, cmds, verts, elems: ^nk.Buffer, null_tex: nk.D
 bake_default_font :: proc(atlas: ^nk.Font_Atlas, height: f32) -> (font: ^nk.Font, pixels: []u8, atlas_width, atlas_height: i32) {
 	nk.font_atlas_init_default(atlas)
 	nk.font_atlas_begin(atlas)
-	font = nk.font_atlas_add_default(atlas, height, nil)
+	// Snap the glyphs to whole pixels, so that the nearest sampling of the atlas keeps them sharp.
+	cfg := nk.font_config(height)
+	cfg.pixel_snap = 1
+	font = nk.font_atlas_add_default(atlas, height, &cfg)
 	w, h: c.int
 	data := nk.font_atlas_bake(atlas, &w, &h, nk.FONT_ATLAS_RGBA32)
 	if data != nil {

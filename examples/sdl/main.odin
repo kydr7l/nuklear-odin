@@ -61,6 +61,8 @@ upload_atlas :: proc(pixels: []u8, width, height: i32) {
 	if app.atlas_texture == nil do fail("SDL_CreateTexture")
 	sdl.UpdateTexture(app.atlas_texture, nil, raw_data(pixels), width * 4)
 	sdl.SetTextureBlendMode(app.atlas_texture, sdl.BLENDMODE_BLEND)
+	// The default linear filter blurs glyphs that land between texels.
+	sdl.SetTextureScaleMode(app.atlas_texture, .NEAREST)
 }
 
 // Convert the draw commands to vertices and draw them.
@@ -202,8 +204,9 @@ main :: proc() {
 	defer sdl.DestroyRenderer(app.renderer)
 	sdl.SetRenderVSync(app.renderer, 1)
 
+	// The default font is a bitmap font made for 13 pixels. Other sizes scale it and blur it.
 	// Upload the pixels before font_atlas_end, which frees them.
-	font, pixels, width, height := common.bake_default_font(&app.atlas, 14)
+	font, pixels, width, height := common.bake_default_font(&app.atlas, 13)
 	if pixels == nil do fail("font bake")
 	upload_atlas(pixels, width, height)
 	nk.font_atlas_end(&app.atlas, {ptr = app.atlas_texture}, &app.null_texture)

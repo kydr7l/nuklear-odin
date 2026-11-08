@@ -138,7 +138,7 @@ clipboard_paste :: proc "c" (handle: nk.Handle, edit: ^nk.Text_Edit) {
 	owner := xlib.GetSelectionOwner(app.dpy, app.xa_clipboard)
 	if owner == app.win {
 		if len(app.clipboard) > 0 {
-			nk.textedit_text(edit, cstring(raw_data(app.clipboard)), i32(len(app.clipboard)))
+			nk.textedit_paste(edit, cstring(raw_data(app.clipboard)), i32(len(app.clipboard)))
 		}
 		return
 	}
@@ -168,7 +168,7 @@ clipboard_paste :: proc "c" (handle: nk.Handle, edit: ^nk.Text_Edit) {
 	)
 	if data != nil {
 		if format == 8 && items > 0 {
-			nk.textedit_text(edit, cstring(data), i32(items))
+			nk.textedit_paste(edit, cstring(data), i32(items))
 		}
 		xlib.Free(data)
 	}
@@ -560,6 +560,8 @@ handle_button :: proc(ev: ^xlib.XButtonEvent, down: bool) {
 	// The wheel sends a press and a release. Count only the press.
 	case 4: if down do nk.input_scroll(ctx, {0, 1})
 	case 5: if down do nk.input_scroll(ctx, {0, -1})
+	case 6: if down do nk.input_scroll(ctx, {-1, 0}) // as SDL, a positive x is right
+	case 7: if down do nk.input_scroll(ctx, {1, 0})
 	case 8: nk.input_button(ctx, nk.BUTTON_X1, x, y, nk.Bool(down))
 	case 9: nk.input_button(ctx, nk.BUTTON_X2, x, y, nk.Bool(down))
 	}
